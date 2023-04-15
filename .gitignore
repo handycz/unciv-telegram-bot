@@ -1,4 +1,4 @@
-storage.pickle
+data/storage.pickle
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -57,10 +57,11 @@ async def _notify(context: ContextTypes.DEFAULT_TYPE):
         return
 
     if turns != last_notify:
+        gameid = data["gameid"]
         data["last_notify"] = turns
         await context.bot.send_message(
             chat_id=context.job.chat_id,
-            text=f"It's your turn in game <b>{name}</b>, {player}! Turn number {turns}.",
+            text=f"It's your turn, {player}! Game: <b>{name}</b>, turn: {turns}. <a href='https://unciv.app/multiplayer?id={gameid}'>OPEN</a>",
             parse_mode=ParseMode.HTML
         )
     else:

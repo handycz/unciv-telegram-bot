@@ -61,9 +61,12 @@ async def _notify(context: ContextTypes.DEFAULT_TYPE):
         data["last_notify"] = turns
         await context.bot.send_message(
             chat_id=context.job.chat_id,
-            text=f"It's your turn, {player}! Game: <b>{name}</b>, turn: {turns}. <a href='https://unciv.app/multiplayer?id={gameid}'>OPEN</a>",
+            text=f"It's your turn, {player}! Game: <b>{name}</b>, turn: {turns}. <a href='{get_game_link(gameid)}'>OPEN</a>",
             parse_mode=ParseMode.HTML
         )
     else:
         _logger.debug("Already notified, skipping")
 
+
+def get_game_link(gameid: str) -> str:
+    return f"https://unciv.app/multiplayer?id={gameid}"

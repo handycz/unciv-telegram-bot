@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
-from data import has_games, get_game, create_notify_job
+from data import has_games, get_game, create_notify_job, get_game_link
 from datatypes import RegistrationStates, UnregistrationStates
 from reader import read_gamefile
 
@@ -35,9 +35,10 @@ async def list_registrations(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         row = [f"<b># {name}</b>",
                f"    Nation: {nation}",
-               f"    Game ID: {gameid}",
+               f"    Game ID: <a href='{get_game_link(gameid)}'>{gameid}</a>",
                f"    Server: {server}",
-               f"    Period: {period} seconds"]
+               f"    Period: {period} seconds",
+               ]
 
         rows.append("\n".join(row))
 

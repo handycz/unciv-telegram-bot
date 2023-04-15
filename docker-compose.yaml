@@ -1,0 +1,11 @@
+version: '3'
+services:
+    tgbot:
+      image: containers.cerno.ch/handy/unciv-telegram-bot:latest
+      volumes:
+        - tgbot-data:/data
+      environment:
+        - CHAT_TOKEN=<chat token here>
+      restart: unless-stopped
+volumes:
+  webmon-data:

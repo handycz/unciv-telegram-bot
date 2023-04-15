@@ -10,7 +10,7 @@ from handlers import *
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG
+    level=logging.INFO
 )
 
 _logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ async def initialize_jobs(app: Application):
 
 
 if __name__ == '__main__':
-    persistence = PicklePersistence("storage.pickle")
+    persistence = PicklePersistence("/data/storage.pickle")
 
     application = ApplicationBuilder().token(
         config.CHAT_TOKEN

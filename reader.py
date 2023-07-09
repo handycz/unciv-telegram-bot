@@ -6,7 +6,7 @@ from typing import Any
 
 import aiohttp
 
-import json as jsonp
+import json
 
 
 async def read_gamefile(server: str, game_id: str, *keys: list[str]):
@@ -22,8 +22,12 @@ async def read_gamefile(server: str, game_id: str, *keys: list[str]):
             except Exception:
                 text = payload.decode("utf8")
 
-    json = load_crippled_json(text)
-    values = _get_values(json, keys)
+    try:
+        json_data = json.loads(text)
+    except json.JSONDecodeError:
+        json_data = load_crippled_json(text)
+
+    values = _get_values(json_data, keys)
     if len(values) == 1:
         return values[0]
 
@@ -32,12 +36,10 @@ async def read_gamefile(server: str, game_id: str, *keys: list[str]):
 
 def _get_values(data, keysets: tuple[list[str]]) -> list[Any]:
     out = list()
-
     for keyset in keysets:
         local_data = data
         for key in keyset:
             local_data = local_data[key]
-
         out.append(local_data)
 
     return out
@@ -215,6 +217,6 @@ def load_crippled_json(data: str) -> dict[Any, Any]:
 
 
 if __name__ == "__main__":
-    x = asyncio.run(read_gamefile("https://uncivserver.xyz", "5e13171c-8b85-47b1-8be3-7a7c83a6ab24", ["turns"], ["currentPlayer"]))
+    x = asyncio.run(read_gamefile("https://uncivserver.xyz", "82469418-5d45-4dbe-840b-1a7cc158a9b1", ["turns"], ["currentPlayer"]))
     print(x)
     print(type(x))

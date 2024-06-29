@@ -1,6 +1,6 @@
 from logging import getLogger
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
@@ -11,7 +11,7 @@ from reader import read_gamefile
 
 __all__ = [
     "list_registrations", "unregister", "start", "register", "register_name", "register_server", "register_cancel",
-    "register_nation_failed", "register_nation_id", "register_gameid", "register_name_failed", "register_server_failed",
+    "register_nation_failed", "register_gameid", "register_name_failed", "register_server_failed",
     "register_nation_name", "register_gameid_failed", "register_period_failed", "register_period", "unregister_name",
     "unregister_cancel"
 ]
@@ -136,7 +136,8 @@ async def register_name_failed(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def register_server(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['registration']['server'] = update.message.text
+    url = update.callback_query.data if update.callback_query else update.message.text
+    context.user_data['registration']['server'] = url
     await _ask_gameid(update, context)
     return RegistrationStates.GAME_ID
 
@@ -159,51 +160,36 @@ async def register_gameid_failed(update: Update, context: ContextTypes.DEFAULT_T
     return RegistrationStates.GAME_ID
 
 
-async def register_nation_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    players = await read_gamefile(
-        context.user_data['registration']['server'],
-        context.user_data['registration']['gameid'],
-        ["gameParameters", "players"]
-    )
-    civ_name = None
-    for player in players:
-        if player.get("playerId", None) == update.message.text:
-            civ_name = player["chosenCiv"]
-
-    if not civ_name:
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Player ID not found in the game. Try again.")
-        return RegistrationStates.NATION
-
-    context.user_data['registration']['nation'] = civ_name
-    await _ask_period(update, context)
-    return RegistrationStates.PERIOD
-
-
 async def register_nation_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     players = await read_gamefile(
         context.user_data['registration']['server'],
         context.user_data['registration']['gameid'],
         ["gameParameters", "players"]
     )
-    playerId = None
-    for player in players:
-        if player.get("chosenCiv", None).lower() == update.message.text.lower():
-            playerId = player["playerId"]
 
-    if not playerId:
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Chosen civ is not a human player. Try again.")
+    userInput = update.callback_query.data if update.callback_query else update.message.text
+    player = [
+        player for player in players
+        if player.get("playerId", "").lower() == userInput.lower() and player.get("playerType", "").lower() == "human"
+    ].pop()
+
+    if not player:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Chosen Civ is not a valid player (wrong id or player type). Try again."
+        )
         return RegistrationStates.NATION
 
-    context.user_data['registration']['nation'] = update.message.text.capitalize()
+    context.user_data['registration']['nation'] = userInput.capitalize()
     await _ask_period(update, context)
     return RegistrationStates.PERIOD
 
 
 async def register_nation_failed(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text="Supplied string is not a nation name nor it is a Client ID. Try again.")
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Supplied string is not a nation name nor it is a Client ID. Try again."
+    )
     await _ask_nation(update, context)
     return RegistrationStates.NATION
 
@@ -214,8 +200,10 @@ async def register_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         period = None
     if not period or period < 10:
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Period must be a number greater or equal to 10")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Period must be a number greater or equal to 10"
+        )
         return RegistrationStates.PERIOD
 
     await _finish_registration(period, update, context)
@@ -224,8 +212,10 @@ async def register_period(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def register_period_failed(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text="Supplied period is not a valid number. Try again.")
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Supplied period is not a valid number. Try again."
+    )
     await _ask_period(update, context)
     return RegistrationStates.PERIOD
 
@@ -244,10 +234,9 @@ async def _ask_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _ask_server(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Enter server name"
-    )
+    keyboard = [[InlineKeyboardButton("https://uncivserver.xyz", callback_data="https://uncivserver.xyz")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Choose server (or enter your own URL):", reply_markup=reply_markup)
 
 
 async def _ask_gameid(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -258,10 +247,21 @@ async def _ask_gameid(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _ask_nation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Enter nation name or Client ID"
+    civilizations = await read_gamefile(
+        context.user_data['registration']['server'],
+        context.user_data['registration']['gameid'],
+        ["civilizations"]
     )
+
+    mapCivNameToPlayerId = {
+        civ["civName"]: civ["playerId"]
+        for civ in civilizations
+        if "playerType" in civ and civ["playerType"].lower() == "human"
+    }
+
+    keyboard = [[InlineKeyboardButton(civName, callback_data=playerId) for civName, playerId in mapCivNameToPlayerId.items()]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Choose civilization:", reply_markup=reply_markup)
 
 
 async def _ask_period(update: Update, context: ContextTypes.DEFAULT_TYPE):

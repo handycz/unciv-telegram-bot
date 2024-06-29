@@ -1,7 +1,7 @@
 import logging
 
 from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters, \
-    PicklePersistence, Application
+    PicklePersistence, Application, CallbackQueryHandler
 from telegram.ext.filters import UpdateType
 
 from data import create_notify_job, has_games
@@ -59,6 +59,7 @@ if __name__ == '__main__':
             ],
             RegistrationStates.SERVER: [
                 CommandHandler("cancel", register_cancel),
+                CallbackQueryHandler(register_server),
                 MessageHandler(filters.TEXT & filters.Regex("^((http|https)://)[-a-zA-Z0-9@:%._\\+~#?&//=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%._\\+~#?&//=]*)$"), register_server),
                 MessageHandler(filters.ALL, register_server_failed)
             ],
@@ -69,7 +70,7 @@ if __name__ == '__main__':
             ],
             RegistrationStates.NATION: [
                 CommandHandler("cancel", register_cancel),
-                MessageHandler(filters.TEXT & id_filter, register_nation_id),
+                CallbackQueryHandler(register_nation_name),
                 MessageHandler(filters.TEXT & name_filter, register_nation_name),
                 MessageHandler(filters.ALL, register_nation_failed)
             ],

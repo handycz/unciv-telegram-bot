@@ -72,7 +72,6 @@ if __name__ == '__main__':
             RegistrationStates.NATION: [
                 CommandHandler("cancel", register_cancel),
                 CallbackQueryHandler(register_nation_name),
-                MessageHandler(filters.TEXT & name_filter, register_nation_name),
                 MessageHandler(filters.ALL, register_nation_failed)
             ],
             RegistrationStates.PERIOD: [

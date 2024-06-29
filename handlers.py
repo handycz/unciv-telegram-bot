@@ -26,7 +26,6 @@ async def list_registrations(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     rows = list()
-    print(context.user_data["games"])
     for game in context.user_data["games"]:
         name = game["name"]
         nation = game["nation"]
@@ -170,10 +169,10 @@ async def register_gameid_failed(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def register_nation_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    players = await read_gamefile(
+    players, civilizations = await read_gamefile(
         context.user_data['registration']['server'],
         context.user_data['registration']['gameid'],
-        ["gameParameters", "players"]
+        ["gameParameters", "players"], ["civilizations"]
     )
 
     userInput = update.callback_query.data if update.callback_query else update.message.text
@@ -181,15 +180,19 @@ async def register_nation_name(update: Update, context: ContextTypes.DEFAULT_TYP
         player for player in players
         if player.get("playerId", "").lower() == userInput.lower() and player.get("playerType", "").lower() == "human"
     ].pop()
+    civilization = [
+        civ for civ in civilizations
+        if "playerId" in civ and civ["playerId"] == player["playerId"]
+    ].pop()
 
-    if not player:
+    if not civilization:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="Chosen Civ is not a valid player (wrong id or player type). Try again."
         )
         return RegistrationStates.NATION
 
-    context.user_data['registration']['nation'] = userInput.capitalize()
+    context.user_data['registration']['nation'] = civilization["civName"]
     await _ask_period(update, context)
     return RegistrationStates.PERIOD
 

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters, \
     PicklePersistence, Application, CallbackQueryHandler
@@ -33,7 +34,7 @@ async def initialize_jobs(app: Application):
 
 
 if __name__ == '__main__':
-    persistence = PicklePersistence("/data/storage.pickle")
+    persistence = PicklePersistence(str(Path("/data/storage.pickle")))
 
     application = ApplicationBuilder().token(
         config.CHAT_TOKEN
@@ -89,7 +90,8 @@ if __name__ == '__main__':
         entry_points=[CommandHandler("unregister", unregister)],
         states={
             UnregistrationStates.NAME: [
-                MessageHandler(filters.TEXT & name_filter, unregister_name),
+                CallbackQueryHandler(unregister_id),
+                MessageHandler(filters.TEXT & name_filter, unregister_id),
             ],
         },
         fallbacks=[CommandHandler("cancel", unregister_cancel)],

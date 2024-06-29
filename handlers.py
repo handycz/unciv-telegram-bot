@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
-from data import has_games, get_game, create_notify_job, get_game_link
+from data import has_games, get_game, create_notify_job, get_game_link, list_games
 from datatypes import RegistrationStates, UnregistrationStates
 from reader import read_gamefile
 
@@ -12,7 +12,7 @@ from reader import read_gamefile
 __all__ = [
     "list_registrations", "unregister", "start", "register", "register_name", "register_server", "register_cancel",
     "register_nation_failed", "register_gameid", "register_name_failed", "register_server_failed",
-    "register_nation_name", "register_gameid_failed", "register_period_failed", "register_period", "unregister_name",
+    "register_nation_name", "register_gameid_failed", "register_period_failed", "register_period", "unregister_id",
     "unregister_cancel"
 ]
 
@@ -26,6 +26,7 @@ async def list_registrations(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     rows = list()
+    print(context.user_data["games"])
     for game in context.user_data["games"]:
         name = game["name"]
         nation = game["nation"]
@@ -45,10 +46,18 @@ async def list_registrations(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text = '\n'.join(rows)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=text, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+        text=text, parse_mode=ParseMode.HTML, disable_web_page_preview=True
+    )
 
 
 async def unregister(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    games = list_games(context.user_data)
+    
+    keyboard = [[InlineKeyboardButton(game["name"], callback_data=game["gameid"])] for game in games]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Choose server (or enter your own URL):", reply_markup=reply_markup)
+
+
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Enter the name of the game to be removed. List your games by /list. Cancel the unregistration by /cancel."
@@ -57,14 +66,14 @@ async def unregister(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return UnregistrationStates.NAME
 
 
-async def unregister_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    name = update.message.text
+async def unregister_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    gameid = update.callback_query.data if update.callback_query else update.message.text
 
-    game = get_game(context.user_data, lambda g: g["name"] == name)
+    game = get_game(context.user_data, lambda g: g["gameid"] == gameid)
     if not game:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="Wrong game name. Try again."
+            text="Wrong game. Try again."
         )
         return UnregistrationStates.NAME
 

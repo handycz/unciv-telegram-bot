@@ -10,7 +10,7 @@ _logger = getLogger(__name__)
 
 
 def has_games(user_data: dict[str, Any] | None) -> bool:
-    return user_data and "games" in user_data
+    return user_data and "games" in user_data and user_data["games"]
 
 
 def get_game(user_data: dict[str, Any] | None, fltr: Callable[[dict[str, Any]], bool]):
@@ -23,6 +23,12 @@ def get_game(user_data: dict[str, Any] | None, fltr: Callable[[dict[str, Any]], 
 
     return None
 
+
+def list_games(user_data: dict[str, Any] | None):
+    if not has_games(user_data):
+        return []
+
+    return user_data["games"]
 
 async def create_notify_job(job_queue: JobQueue, registration_data: dict[str, Any]) -> Job:
     period = registration_data["period"]

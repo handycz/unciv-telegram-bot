@@ -290,7 +290,6 @@ async def _finish_registration(period: float, update: Update, context: ContextTy
     del context.user_data["registration"]
 
     registration_data["chatid"] = chat_id
-    registration_data["last_notify"] = -1
     registration_data["period"] = period
 
     job = await create_notify_job(context.job_queue, registration_data)

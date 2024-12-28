@@ -19,7 +19,7 @@ _logger = logging.getLogger(__name__)
 config = Config()
 
 id_filter = filters.Regex(r"^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$")
-name_filter = filters.Regex(r"^[a-zA-Z_\- ]+$")
+name_filter = filters.Regex(r"^[a-zA-Z0-9_\- ]+$")
 
 
 async def initialize_jobs(app: Application):

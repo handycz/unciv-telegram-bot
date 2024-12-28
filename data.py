@@ -1,8 +1,9 @@
+from datetime import timedelta, datetime
 from logging import getLogger
 from typing import Any, Callable
 
 from telegram.constants import ParseMode
-from telegram.ext import JobQueue, Job, ContextTypes
+from telegram.ext import JobQueue, Job, ContextTypes, CallbackContext
 
 from reader import read_gamefile
 
@@ -54,22 +55,48 @@ async def _run_notification_task(context: ContextTypes.DEFAULT_TYPE):
         _remove_job(context)
         return
     
-    current_player_name, current_player_turn = await read_gamefile(job_data["server"], job_data["gameid"], ["currentPlayer"], ["turns"])
-    last_notify_turn = job_data.get("last_notify_turn") or job_data.get("last_notify")  # todo: remove deprecated `last_notify` use
+    current_player_nation, current_player_turn = await read_gamefile(job_data["server"], job_data["gameid"], ["currentPlayer"], ["turns"])
+    last_notification_turn = job_data.get("last_notification_turn", -1) or job_data.get("last_notify")  # todo: remove deprecated `last_notify` use
 
-    if current_player_name != job_data["nation"]:
-        _logger.debug("Not players turn, skipping. checked=%s, turn=%s", current_player_name, job_data["nation"])
-    elif current_player_turn != last_notify_turn:
+    if current_player_nation != job_data["nation"]:
+        _logger.debug("Not players turn, skipping. checked=%s, turn=%s", current_player_nation, job_data["nation"])
+        return
+    
+    if current_player_turn > last_notification_turn:
+        _logger.debug("Turn number changed, resetting turn notification state")
+        job_data["last_notification_turn"] = current_player_turn
+        current_turn_notification_count = 0
+        next_notification_time = datetime.fromtimestamp(0).isoformat()
+    else:
+        current_turn_notification_count = job_data.get("current_turn_notification_count", 0)        
+        next_notification_time = job_data.get("next_notification_time", datetime.fromtimestamp(0).isoformat())
+        
+    now = datetime.now()
+    
+    if now > datetime.fromisoformat(next_notification_time):
         gameid = job_data["gameid"]
-        job_data["last_notify_turn"] = current_player_turn
+        next_reminder = timedelta(seconds=_get_notification_time_difference_seconds(current_turn_notification_count + 1))
+        job_data["next_notification_time"] = (now + next_reminder).isoformat()
+        job_data["current_turn_notification_count"] = current_turn_notification_count + 1
+        notification_text = (
+            f"It's your turn, {current_player_nation}! "
+            f"Game: <b>{name}</b>, turn: {current_player_turn}. <a href='{get_game_link(gameid)}'>OPEN</a>. "
+            f"Next reminder in {next_reminder}."
+        )
+        
         await context.bot.send_message(
             chat_id=context.job.chat_id,
-            text=f"It's your turn, {current_player_name}! Game: <b>{name}</b>, turn: {current_player_turn}. <a href='{get_game_link(gameid)}'>OPEN</a>",
+            text=notification_text,
             parse_mode=ParseMode.HTML
         )
     else:
         _logger.debug("Already notified, skipping")
 
+def _get_notification_time_difference_seconds(notification_number: int) -> int:
+    """ Return notification time difference in seconds """
+
+    difference_minutes = notification_number**3 * 15
+    return difference_minutes * 60
 
 def _remove_job(context: CallbackContext) -> None:
         _logger.warning("Removing orphan job user_id=%s, name=%s", context.job.user_id, context.job.data)

@@ -5,7 +5,7 @@ from typing import Any, Callable
 from telegram.constants import ParseMode
 from telegram.ext import JobQueue, Job, ContextTypes, CallbackContext
 
-from reader import read_gamefile
+from reader import gamefile
 
 _logger = getLogger(__name__)
 
@@ -55,8 +55,11 @@ async def _run_notification_task(context: ContextTypes.DEFAULT_TYPE):
         _remove_job(context)
         return
     
-    current_player_nation, current_player_turn = await read_gamefile(job_data["server"], job_data["gameid"], ["currentPlayer"], ["turns"])
-    last_notification_turn = job_data.get("last_notification_turn", -1) or job_data.get("last_notify")  # todo: remove deprecated `last_notify` use
+    async with gamefile(job_data["server"], job_data["gameid"]) as f:
+        current_player_nation = f.get_value("currentPlayer")
+        current_player_turn = f.get_value("turns", required=False) or 0
+        
+    last_notification_turn = job_data.get("last_notification_turn", -1)
 
     if current_player_nation != job_data["nation"]:
         _logger.debug("Not players turn, skipping. checked=%s, turn=%s", current_player_nation, job_data["nation"])

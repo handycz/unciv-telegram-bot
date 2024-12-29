@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from data import has_games, get_game, create_notify_job, get_game_link, list_games
 from datatypes import RegistrationStates, UnregistrationStates
-from reader import read_gamefile
+from reader import gamefile
 
 
 __all__ = [
@@ -169,11 +169,9 @@ async def register_gameid_failed(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def register_nation_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    players, civilizations = await read_gamefile(
-        context.user_data['registration']['server'],
-        context.user_data['registration']['gameid'],
-        ["gameParameters", "players"], ["civilizations"]
-    )
+    async with gamefile(context.user_data['registration']['server'], context.user_data['registration']['gameid']) as f:
+        players = f.get_value("gameParameters", "players")
+        civilizations = f.get_value("civilizations")
 
     userInput = update.callback_query.data if update.callback_query else update.message.text
     player = [
@@ -259,11 +257,8 @@ async def _ask_gameid(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _ask_nation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    civilizations = await read_gamefile(
-        context.user_data['registration']['server'],
-        context.user_data['registration']['gameid'],
-        ["civilizations"]
-    )
+    async with gamefile(context.user_data['registration']['server'], context.user_data['registration']['gameid']) as f:
+        civilizations = f.get_value("civilizations")
 
     mapCivNameToPlayerId = {
         civ["civName"]: civ["playerId"]

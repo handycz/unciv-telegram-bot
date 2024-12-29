@@ -1,17 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import base64
+import contextlib
 import gzip
+import json
 import re
-from typing import Any
+from typing import Any, Iterator
 
 import aiohttp
 
-import json
 
-
-async def read_gamefile(server: str, game_id: str, *keys: list[str]):
+@contextlib.asynccontextmanager
+async def gamefile(server: str, game_id: str) -> Iterator[_Gamefile]:
     url = f"{server}/files/{game_id}"
-
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             payload = await response.read()
@@ -23,20 +25,22 @@ async def read_gamefile(server: str, game_id: str, *keys: list[str]):
                 text = payload.decode("utf8")
 
     json_data = json.loads(text)
-
-    values = _get_values(json_data, keys)
-    if len(values) == 1:
-        return values[0]
-
-    return values
+    yield _Gamefile(json_data)
 
 
-def _get_values(data, keysets: tuple[list[str]]) -> list[Any]:
-    out = list()
-    for keyset in keysets:
-        local_data = data
-        for key in keyset:
-            local_data = local_data[key]
-        out.append(local_data)
+class _Gamefile:
+    _data: Any
 
-    return out
+    def __init__(self, data: Any):
+        self._data = data
+        
+    def get_value(self, *path: list[str], required: bool = True) -> Any:
+        local_data = self._data
+        for key in path:
+            try:
+                local_data = local_data[key]
+            except KeyError as err:
+                if required:
+                    raise err
+                return None
+        return local_data
